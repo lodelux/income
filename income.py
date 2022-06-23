@@ -3,6 +3,8 @@ import requests
 import os
 from web3 import Web3
 
+
+# add rpc url and chain name
 CHAINS_WEB3 = {'moonbeam': Web3(
     Web3.HTTPProvider('https://rpc.api.moonbeam.network')),
     'bsc': Web3(
@@ -20,6 +22,7 @@ STRATEGIST = "0xc75E1B127E288f1a33606a52AB5C91BBe64EaAfe"
 
 BASE_URL = "https://api.beefy.finance/"
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
+
 # add the chains that you want to track
 income = {'moonbeam': [], 'polygon': [], 'avax': [], 'bsc': []}
 
