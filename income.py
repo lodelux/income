@@ -19,7 +19,7 @@ STRATEGIST = "0xc75E1B127E288f1a33606a52AB5C91BBe64EaAfe"
 
 
 BASE_URL = "https://api.beefy.finance/"
-
+BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 # add the chains that you want to track
 income = {'moonbeam': [], 'polygon': [], 'avax': [], 'bsc': []}
 
@@ -65,7 +65,7 @@ def saveVaults(vaults):
 
     :param vaults: a list of dictionaries, each dictionary is a vault
     """
-    with open('/home/lodelux/projects/income/vaults.json', 'w') as f:
+    with open(BASE_PATH + '/vaults.json', 'w') as f:
         json.dump(vaults, f)
 
 
@@ -206,8 +206,7 @@ def saveIncome(income):
 
     :param income: a dictionary of income for each chain
     """
-    with open('/home/lodelux/projects/income/income.json', 'w') as f:
-
+    with open(BASE_PATH + '/income.json', 'w') as f:
         json.dump(income, f)
 
 
@@ -240,8 +239,8 @@ if __name__ == '__main__':
     # let user choose if to use stored vaults or fetch new ones
     print('1 to use stored vaults, 2 to fetch new ones')
     choice = input()
-    if choice == '1' and os.path.exists('/home/lodelux/projects/income/vaults.json'):
-        with open('/home/lodelux/projects/income/vaults.json') as f:
+    if choice == '1' and os.path.exists(BASE_PATH + '/vaults.json'):
+        with open(BASE_PATH + '/vaults.json') as f:
             vaults = json.load(f)
     else:
         vaults = getVaults()
