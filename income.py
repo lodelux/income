@@ -13,6 +13,11 @@ CHAINS_WEB3 = {'moonbeam': Web3(
     Web3.HTTPProvider('https://polygon-rpc.com')),
     'avax': Web3(
     Web3.HTTPProvider('https://api.avax.network/ext/bc/C/rpc')),
+    'fantom': Web3(
+    Web3.HTTPProvider('https://rpc.ftm.tools/')),
+    'aurora': Web3(
+    Web3.HTTPProvider('https://mainnet.aurora.dev')),
+
 }
 
 
@@ -24,7 +29,8 @@ BASE_URL = "https://api.beefy.finance/"
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 
 # add the chains that you want to track
-income = {'moonbeam': [], 'polygon': [], 'avax': [], 'bsc': []}
+income = {'moonbeam': [], 'polygon': [], 'avax': [],
+          'bsc': [], 'fantom': [], 'aurora': []}
 
 APY = requests.get(BASE_URL + "apy/breakdown").json()
 TVL = requests.get(BASE_URL + "tvl").json()
@@ -62,13 +68,13 @@ def getTvl(id):
     return 0
 
 
-def saveVaults(vaults):
+def saveVaultsByStrategist(vaults):
     """
     > save  vaults to file
 
     :param vaults: a list of dictionaries, each dictionary is a vault
     """
-    with open(BASE_PATH + '/vaults.json', 'w') as f:
+    with open(BASE_PATH + '/' + STRATEGIST + '.json', 'w') as f:
         json.dump(vaults, f)
 
 
@@ -91,7 +97,7 @@ def filterVaultsByStrategist(vaults):
         vault for vault in vaults if 'strategist' in vault and vault['strategist'] == STRATEGIST]
     # clear console
     print("\r" + " " * 50)
-    saveVaults(_vaults)
+    saveVaultsByStrategist(_vaults)
     return _vaults
 
 
@@ -111,6 +117,8 @@ def addApy(vaults):
     for vault in vaults:
         try:
             vault['apy'] = APY[vault['id']]['vaultApr']
+            if vault['apy'] == None:
+                vault['apy'] = 0
         except Exception as e:
             print(f'error in adding apy for {vault["id"]} : {e}')
             continue
@@ -146,21 +154,40 @@ def addIncome(vaults):
     for vault in vaults:
         try:
             vault['income'] = round(vault['apy'] * vault['tvl'] * 0.005, 2)
-        except:
-            print(f'error in adding income for {vault["id"]}')
+        except Exception as e:
+            print(f'error in adding income for {vault["id"]} : {e}')
             continue
     return vaults
 
 
 def divideVaultsByChain(vaults):
     """
-    It takes a list of vaults and returns a dictionary of vaults divided by chain.
+    It takes a list of vaults and returns a dictionary of vaults divided by chain, sorted by income.
 
     :param vaults: list of vaults
     """
     for chain in CHAINS_WEB3:
         income[chain] = [vault for vault in vaults if vault['chain'] == chain]
+        income[chain].sort(key=lambda x: x['income'], reverse=True)
     return income
+
+# calculate average apy of vaults weighted by tvl
+
+
+def getAvgApy(vaults):
+    """
+    It takes a list of vaults and returns the average APY of the vaults.
+    :param vaults: list of vaults
+    :return: average APY
+    """
+    total_apy = 0
+    total_tvl = 0
+    if (len(vaults) == 0):
+        return 0
+    for vault in vaults:
+        total_apy += vault['apy'] * vault['tvl']
+        total_tvl += vault['tvl']
+    return total_apy / total_tvl
 
 
 def printIncome(income):
@@ -173,6 +200,9 @@ def printIncome(income):
     total = 0
     totalTvl = 0
     for chain, vaults in income.items():
+        if(len(vaults) == 0):
+            continue
+
         print('-' * 87)
         print('|{:^30}|{:^10}|{:^10}|{:^10}|{:^10}|{:^10}|'.format(
             'id', 'tvl (k$)', 'apy (%)', 'day ($)', 'week ($)', 'month ($)'))
@@ -187,7 +217,7 @@ def printIncome(income):
         totalTvlChain = sum([vault['tvl'] for vault in vaults])
         print('-' * 87)
         print('|{:^30}|{:^10}|{:^10}|{:^10}|{:^10}|{:^10}|'.format(
-            'total ' + chain.upper(), round(totalTvlChain / 1000, 2), '', round(totalChain / 365, 2), round(totalChain / 52, 2), round(totalChain / 12, 2)))
+            'total ' + chain.upper(), round(totalTvlChain / 1000, 2), round(getAvgApy(vaults) * 100, 2), round(totalChain / 365, 2), round(totalChain / 52, 2), round(totalChain / 12, 2)))
         print('-' * 87)
 
         print('\n')
@@ -199,7 +229,7 @@ def printIncome(income):
         'id', 'tvl (k$)', 'apy (%)', 'day ($)', 'week ($)', 'month ($)'))
     print('-' * 87)
     print('|{:^30}|{:^10}|{:^10}|{:^10}|{:^10}|{:^10}|'.format(
-        'total ALL CHAINS', round(totalTvl / 1000, 2), '', round(total / 365, 2), round(total / 52, 2), round(total / 12, 2)))
+        'total ALL CHAINS', round(totalTvl / 1000, 2), round(getAvgApy([vault for _, vaults in income.items() for vault in vaults]) * 100, 2), round(total / 365, 2), round(total / 52, 2), round(total / 12, 2)))
     print('-' * 87)
 
 
@@ -220,6 +250,19 @@ def testPrintIncome():
     printIncome(income)
 
 
+# sorts vaults by tvl and saves the link www.beefy.finance/vault/{id} to file
+def saveVaultsByTvl(vaults):
+    """
+    It takes a list of vaults and sorts them by tvl. It then saves the link www.beefyfinance.com/vault/{id} to file.
+
+    :param vaults: list of vaults
+    """
+    vaults.sort(key=lambda x: x['tvl'], reverse=True)
+    with open(BASE_PATH + '/vaultsByTvl.txt', 'w') as f:
+        for vault in vaults:
+            f.write(f'https://www.beefy.finance/vault/{vault["id"]}\n\n')
+
+
 def main(vaults, choice):
     """
     It takes a list of vaults, filters them by status and strategist, adds APY, TVL, and income, then
@@ -236,15 +279,17 @@ def main(vaults, choice):
     vaults = addIncome(vaults)
     income = divideVaultsByChain(vaults)
     printIncome(income)
+    # saveVaultsByTvl(vaults)
 
 
 if __name__ == '__main__':
     # let user choose if to use stored vaults or fetch new ones
     print('1 to use stored vaults, 2 to fetch new ones')
     choice = input()
-    if choice == '1' and os.path.exists(BASE_PATH + '/vaults.json'):
-        with open(BASE_PATH + '/vaults.json') as f:
+    if choice == '1' and os.path.exists(BASE_PATH + '/' + STRATEGIST + '.json'):
+        with open(BASE_PATH + '/' + STRATEGIST + '.json') as f:
             vaults = json.load(f)
     else:
+        choice = '2'
         vaults = getVaults()
     main(vaults, choice)
